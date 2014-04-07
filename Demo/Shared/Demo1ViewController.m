@@ -63,7 +63,7 @@
 	else {
 		NSString *contentMessage = nil;
 		UIView *contentView = nil;
-		NSNumber *key = [NSNumber numberWithInt:[(UIView *)sender tag]];
+		NSNumber *key = [NSNumber numberWithInteger:[(UIView *)sender tag]];
 		id content = [self.contents objectForKey:key];
 		if ([content isKindOfClass:[UIView class]]) {
 			contentView = content;
@@ -101,6 +101,7 @@
         //popTipView.sidePadding = 30.0f;
         //popTipView.topMargin = 20.0f;
         //popTipView.pointerSize = 50.0f;
+        //popTipView.hasShadow = NO;
 		
 		if (backgroundColor && ![backgroundColor isEqual:[NSNull null]]) {
 			popTipView.backgroundColor = backgroundColor;

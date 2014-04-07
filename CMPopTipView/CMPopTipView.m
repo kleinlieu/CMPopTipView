@@ -2,7 +2,7 @@
 //  CMPopTipView.m
 //
 //  Created by Chris Miles on 18/07/10.
-//  Copyright (c) Chris Miles 2010-2013.
+//  Copyright (c) Chris Miles 2010-2014.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -157,7 +157,7 @@
         CGFloat green;
         CGFloat blue;
         CGFloat alpha;
-        int numComponents = CGColorGetNumberOfComponents([self.backgroundColor CGColor]);
+        size_t numComponents = CGColorGetNumberOfComponents([self.backgroundColor CGColor]);
         const CGFloat *components = CGColorGetComponents([self.backgroundColor CGColor]);
         if (numComponents == 2) {
             red = components[0];
@@ -226,7 +226,7 @@
     
     //Draw Border
     if (self.borderWidth > 0) {
-        int numBorderComponents = CGColorGetNumberOfComponents([self.borderColor CGColor]);
+        size_t numBorderComponents = CGColorGetNumberOfComponents([self.borderColor CGColor]);
         const CGFloat *borderComponents = CGColorGetComponents(self.borderColor.CGColor);
         CGFloat r, g, b, a;
         if (numBorderComponents == 2) {
@@ -253,12 +253,35 @@
     if (self.title) {
         [self.titleColor set];
         CGRect titleFrame = [self contentFrame];
-        NSMutableParagraphStyle *textStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
-        textStyle.lineBreakMode = NSLineBreakByClipping;
-        textStyle.alignment = self.titleAlignment;
-        UIFont *textFont = self.titleFont;
         
-        [self.title drawInRect:titleFrame withAttributes:@{ NSFontAttributeName:textFont, NSParagraphStyleAttributeName:textStyle, NSForegroundColorAttributeName: self.titleColor }];
+        if ([self.title respondsToSelector:@selector(drawWithRect:options:attributes:context:)]) {
+            NSMutableParagraphStyle *titleParagraphStyle = [[NSMutableParagraphStyle alloc] init];
+            titleParagraphStyle.alignment = self.titleAlignment;
+            titleParagraphStyle.lineBreakMode = NSLineBreakByClipping;
+            
+            [self.title drawWithRect:titleFrame
+                             options:NSStringDrawingUsesLineFragmentOrigin
+                          attributes:@{
+                                       NSFontAttributeName: self.titleFont,
+                                       NSForegroundColorAttributeName: self.titleColor,
+                                       NSParagraphStyleAttributeName: titleParagraphStyle
+                                       }
+                             context:nil];
+            
+        }
+        else {
+            
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            
+            [self.title drawInRect:titleFrame
+                          withFont:self.titleFont
+                     lineBreakMode:NSLineBreakByClipping
+                         alignment:self.titleAlignment];
+            
+#pragma clang diagnostic pop
+            
+        }
     }
 	
 	if (self.message) {
@@ -267,24 +290,59 @@
         
         // Move down to make room for title
         if (self.title) {
-            NSMutableParagraphStyle *titleStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
-            titleStyle.lineBreakMode = NSLineBreakByClipping;
-            titleStyle.alignment = self.textAlignment;
-            UIFont *textFont = self.textFont;
             
-            NSDictionary *stringAttributes = @{NSFontAttributeName: self.titleFont, NSFontAttributeName:textFont};
-            
-            textFrame.origin.y += [self.message boundingRectWithSize:CGSizeMake(textFrame.size.width, 99999.0)
-                                                             options:NSStringDrawingTruncatesLastVisibleLine|NSStringDrawingUsesLineFragmentOrigin
-                                                          attributes:stringAttributes context:nil].size.height;
+            if ([self.title respondsToSelector:@selector(boundingRectWithSize:options:attributes:context:)]) {
+                NSMutableParagraphStyle *titleParagraphStyle = [[NSMutableParagraphStyle alloc] init];
+                titleParagraphStyle.lineBreakMode = NSLineBreakByClipping;
+                
+                textFrame.origin.y += [self.title boundingRectWithSize:CGSizeMake(textFrame.size.width, 99999.0)
+                                                               options:kNilOptions
+                                                            attributes:@{
+                                                                         NSFontAttributeName: self.titleFont,
+                                                                         NSParagraphStyleAttributeName: titleParagraphStyle
+                                                                         }
+                                                               context:nil].size.height;
+            }
+            else {
+                
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+                
+                textFrame.origin.y += [self.title sizeWithFont:self.titleFont
+                                             constrainedToSize:CGSizeMake(textFrame.size.width, 99999.0)
+                                                 lineBreakMode:NSLineBreakByClipping].height;
+                
+#pragma clang diagnostic pop
+                
+            }
         }
         
-        NSMutableParagraphStyle *textStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
-        textStyle.lineBreakMode = NSLineBreakByWordWrapping;
-        textStyle.alignment = self.textAlignment;
-        UIFont *textFont = self.textFont;
+        NSMutableParagraphStyle *textParagraphStyle = [[NSMutableParagraphStyle alloc] init];
+        textParagraphStyle.alignment = self.textAlignment;
+        textParagraphStyle.lineBreakMode = NSLineBreakByWordWrapping;
         
-        [self.message drawInRect:textFrame withAttributes:@{ NSFontAttributeName:textFont, NSParagraphStyleAttributeName:textStyle, NSForegroundColorAttributeName: self.textColor }];
+        if ([self.message respondsToSelector:@selector(drawWithRect:options:attributes:context:)]) {
+            [self.message drawWithRect:textFrame
+                               options:NSStringDrawingUsesLineFragmentOrigin attributes:@{
+                                                                                          NSFontAttributeName: self.textFont,
+                                                                                          NSParagraphStyleAttributeName: textParagraphStyle,
+                                                                                          NSForegroundColorAttributeName: self.textColor
+                                                                                          }
+                               context:nil];
+        }
+        else {
+            
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            
+            [self.message drawInRect:textFrame
+                            withFont:self.textFont
+                       lineBreakMode:NSLineBreakByWordWrapping
+                           alignment:self.textAlignment];
+            
+#pragma clang diagnostic pop
+            
+        }
     }
 }
 
@@ -340,31 +398,65 @@
 	CGSize textSize = CGSizeZero;
     
     if (self.message!=nil) {
-        NSMutableParagraphStyle *titleStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
-        titleStyle.lineBreakMode = NSLineBreakByClipping;
-        titleStyle.alignment = self.textAlignment;
-        UIFont *textFont = self.textFont;
-        
-        NSDictionary *stringAttributes = @{NSFontAttributeName: self.textFont, NSFontAttributeName:textFont};
-        
-        textSize = [self.message boundingRectWithSize:CGSizeMake(rectWidth, 99999.0)
-                                              options:NSStringDrawingTruncatesLastVisibleLine|NSStringDrawingUsesLineFragmentOrigin
-                                           attributes:stringAttributes context:nil].size;
+        if ([self.message respondsToSelector:@selector(boundingRectWithSize:options:attributes:context:)]) {
+            NSMutableParagraphStyle *textParagraphStyle = [[NSMutableParagraphStyle alloc] init];
+            textParagraphStyle.alignment = self.textAlignment;
+            textParagraphStyle.lineBreakMode  =NSLineBreakByWordWrapping;
+            
+            textSize = [self.message boundingRectWithSize:CGSizeMake(rectWidth, 99999.0)
+                                                  options:NSStringDrawingUsesLineFragmentOrigin
+                                               attributes:@{
+                                                            NSFontAttributeName: self.textFont,
+                                                            NSParagraphStyleAttributeName: textParagraphStyle
+                                                            }
+                                                  context:nil].size;
+        }
+        else {
+            
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            
+            textSize = [self.message sizeWithFont:self.textFont
+                                constrainedToSize:CGSizeMake(rectWidth, 99999.0)
+                                    lineBreakMode:NSLineBreakByWordWrapping];
+            
+#pragma clang diagnostic pop
+            
+        }
     }
     if (self.customView != nil) {
         textSize = self.customView.frame.size;
     }
     if (self.title != nil) {
-        NSMutableParagraphStyle *titleStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
-        titleStyle.lineBreakMode = NSLineBreakByClipping;
-        titleStyle.alignment = self.textAlignment;
-        UIFont *textFont = self.textFont;
+        CGSize titleSize;
         
-        NSDictionary *stringAttributes = @{NSFontAttributeName: self.titleFont, NSFontAttributeName:textFont};
+        if ([self.title respondsToSelector:@selector(boundingRectWithSize:options:attributes:context:)]) {
+            NSMutableParagraphStyle *titleParagraphStyle = [[NSMutableParagraphStyle alloc] init];
+            titleParagraphStyle.lineBreakMode = NSLineBreakByClipping;
+            
+            titleSize = [self.title boundingRectWithSize:CGSizeMake(rectWidth, 99999.0)
+                                                 options:kNilOptions
+                                              attributes:@{
+                                                           NSFontAttributeName: self.titleFont,
+                                                           NSParagraphStyleAttributeName: titleParagraphStyle
+                                                           }
+                                                 context:nil].size;
+        }
+        else {
+            
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            
+            titleSize = [self.title sizeWithFont:self.titleFont
+                               constrainedToSize:CGSizeMake(rectWidth, 99999.0)
+                                   lineBreakMode:NSLineBreakByClipping];
+            
+#pragma clang diagnostic pop
+            
+        }
         
-        textSize.height += [self.title boundingRectWithSize:CGSizeMake(rectWidth, 99999.0)
-                                                    options:NSStringDrawingTruncatesLastVisibleLine|NSStringDrawingUsesLineFragmentOrigin
-                                                 attributes:stringAttributes context:nil].size.height;
+        if (titleSize.width > textSize.width) textSize.width = titleSize.width;
+        textSize.height += titleSize.height;
     }
     
 	_bubbleSize = CGSizeMake(textSize.width + _cornerRadius*2, textSize.height + _cornerRadius*2);
@@ -626,15 +718,19 @@
     return self;
 }
 
-- (void)setHasShadow:(BOOL)newHasShadow
+- (void)setHasShadow:(BOOL)hasShadow
 {
-    if (newHasShadow) {
-        self.layer.shadowOffset = CGSizeMake(0, 3);
-        self.layer.shadowRadius = 2.0;
-        self.layer.shadowColor = [[UIColor blackColor] CGColor];
-        self.layer.shadowOpacity = 0.3;
-    } else {
-        self.layer.shadowOpacity = 0.0;
+    if (hasShadow != _hasShadow) {
+        _hasShadow = hasShadow;
+        
+        if (hasShadow) {
+            self.layer.shadowOffset = CGSizeMake(0, 3);
+            self.layer.shadowRadius = 2.0;
+            self.layer.shadowColor = [[UIColor blackColor] CGColor];
+            self.layer.shadowOpacity = 0.3;
+        } else {
+            self.layer.shadowOpacity = 0.0;
+        }
     }
 }
 
